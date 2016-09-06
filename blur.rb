@@ -1,3 +1,5 @@
+require 'pry'
+
 class Image
 
 
@@ -33,6 +35,41 @@ class Image
       end
     end
   end
+  
+  
+  # This way we're just running the original transform function
+  # multiple times after resetting any changed flags.
+  def ripple_2(dist)
+    dist.times do |i|
+      transform
+      @pixels.flatten.each { |pixel| pixel.reset_changed }
+    end
+  end
+  
+  
+  def ripple_3(dist)
+    @pixels.each_with_index do |pixel_row, y|
+      pixel_row.each_with_index do |pixel, x|
+        if pixel.one? && !pixel.changed
+          potential_coords = dist.downto(-dist).to_a
+          # To simulate X and Y
+          potential_coords << potential_coords.dup
+          potential_coords = potential_coords.flatten
+          potential_coords = potential_coords.permutation(2).to_a.uniq
+          target_coords = potential_coords.select do |set|
+            sum = set[0].abs + set[1].abs
+            sum <= dist
+          end
+          target_coords.each do |coord|
+            if @pixels[y + coord[0]] && target = @pixels[y + coord[0]][x + coord[1]]
+              target.toggle! unless target.one? || target.changed
+            end
+          end
+        end
+      end
+    end
+  end
+
   
 private
   
@@ -83,6 +120,48 @@ private
   end
   
   
+  # This is the original transform function from the skype interview
+  def transform
+                     		
+		@pixels.each_with_index do |pixel_row, y|
+			
+			row_flag = nil
+      row_flag = 'top' if y == 0
+      row_flag = 'bottom' if y == @height
+      
+			pixel_row.each_with_index do |pixel, x|
+				    
+        pixel_flag = nil
+        pixel_flag = 'left' if x == 0
+        pixel_flag = 'right' if x == @width
+				 	
+				if pixel.one? && !pixel.changed
+					
+					if row_flag != 'bottom'
+						target = @pixels[y + 1][x]
+						target.toggle! unless target.one?
+					end
+					
+					if row_flag != 'top'
+						target = @pixels[y - 1][x]
+						target.toggle! unless target.one?
+					end
+					
+					if pixel_flag != 'left'
+						target = @pixels[y][x - 1]
+						target.toggle! unless target.one?
+					end
+					
+					if pixel_flag != 'right'
+						target = @pixels[y][x + 1]
+						target.toggle! unless target.one?
+					end
+				end
+			end
+		end
+  end
+  
+  
   # Build our pixels 2D array
   def construct_pixels(data)
     data.each do |array|
@@ -119,6 +198,11 @@ class Pixel
 
   def one?
     @value == 1
+  end
+  
+  
+  def reset_changed
+    @changed = false
   end
   
 end
